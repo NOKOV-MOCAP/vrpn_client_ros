@@ -99,8 +99,8 @@ namespace vrpn_client_ros
     RCLCPP_INFO_STREAM(nh->get_logger(), "Creating new tracker " << tracker_name);
 
     tracker_remote_->register_change_handler(this, &VrpnTrackerRos::handle_pose);
-    // tracker_remote_->register_change_handler(this, &VrpnTrackerRos::handle_twist);
-    // tracker_remote_->register_change_handler(this, &VrpnTrackerRos::handle_accel);
+    tracker_remote_->register_change_handler(this, &VrpnTrackerRos::handle_twist);
+    tracker_remote_->register_change_handler(this, &VrpnTrackerRos::handle_accel);
     tracker_remote_->shutup = true;
 
     rclcpp::expand_topic_or_service_name(
@@ -133,29 +133,18 @@ namespace vrpn_client_ros
   {
     RCLCPP_INFO_STREAM(output_nh_->get_logger(), "Destroying tracker " << tracker_name);
     tracker_remote_->unregister_change_handler(this, &VrpnTrackerRos::handle_pose);
-    // tracker_remote_->unregister_change_handler(this, &VrpnTrackerRos::handle_twist);
-    // tracker_remote_->unregister_change_handler(this, &VrpnTrackerRos::handle_accel);
+    tracker_remote_->unregister_change_handler(this, &VrpnTrackerRos::handle_twist);
+    tracker_remote_->unregister_change_handler(this, &VrpnTrackerRos::handle_accel);
   }
 
   void VrpnTrackerRos::mainloop()
   {
     tracker_remote_->mainloop();
-    mainloop_executed_ = false;
   }
 
   void VRPN_CALLBACK VrpnTrackerRos::handle_pose(void *userData, const vrpn_TRACKERCB tracker_pose)
   {
     VrpnTrackerRos *tracker = static_cast<VrpnTrackerRos *>(userData);
-
-    if(tracker->mainloop_executed_) {
-        RCLCPP_WARN_ONCE(
-            tracker->output_nh_->get_logger(), 
-            "VRPN update executed multiple times for single mainloop run. Try to adjust your VRPN server settings."
-        );
-        return;
-    }
-    tracker->mainloop_executed_ = true;
-
     rclcpp::Node::SharedPtr nh = tracker->output_nh_;
     
     if (!tracker->pose_pub_)
@@ -183,8 +172,7 @@ namespace vrpn_client_ros
     tracker->pose_msg_.pose.orientation.w = tracker_pose.quat[3];
 
     tracker->pose_pub_->publish(tracker->pose_msg_);
-    
-
+  
     // if (tracker->broadcast_tf_)
     // {
     //   static tf2_ros::TransformBroadcaster tf_broadcaster;
@@ -221,115 +209,79 @@ namespace vrpn_client_ros
     // }
   }
 
-  // void VRPN_CALLBACK VrpnTrackerRos::handle_twist(void *userData, const vrpn_TRACKERVELCB tracker_twist)
-  // {
-  //   VrpnTrackerRos *tracker = static_cast<VrpnTrackerRos *>(userData);
+  void VRPN_CALLBACK VrpnTrackerRos::handle_twist(void *userData, const vrpn_TRACKERVELCB tracker_twist)
+  {
+    VrpnTrackerRos *tracker = static_cast<VrpnTrackerRos *>(userData);
+    rclcpp::Node::SharedPtr nh = tracker->output_nh_;
 
-  //   ros::Publisher *twist_pub;
-  //   std::size_t sensor_index(0);
-  //   rclcpp::Node::SharedPtr nh = tracker->output_nh_;
-  //   
-  //   if (tracker->process_sensor_id_)
-  //   {
-  //     sensor_index = static_cast<std::size_t>(tracker_twist.sensor);
-  //     nh = rclcpp::Node::SharedPtr(tracker->output_nh_, std::to_string(tracker_twist.sensor));
-  //   }
-  //   
-  //   if (tracker->twist_pubs_.size() <= sensor_index)
-  //   {
-  //     tracker->twist_pubs_.resize(sensor_index + 1);
-  //   }
-  //   twist_pub = &(tracker->twist_pubs_[sensor_index]);
+    if (!tracker->twist_pub_)
+    {
+      tracker->twist_pub_ = nh->create_publisher<geometry_msgs::msg::TwistStamped>("twist", 1);
+    }
 
-  //   if (twist_pub->getTopic().empty())
-  //   {
-  //     *twist_pub = nh.advertise<geometry_msgs::TwistStamped>("twist", 1);
-  //   }
+    if (tracker->use_server_time_)
+    {
+      tracker->twist_msg_.header.stamp.sec = tracker_twist.msg_time.tv_sec;
+      tracker->twist_msg_.header.stamp.nanosec = tracker_twist.msg_time.tv_usec * 1000;
+    }
+    else
+    {
+      tracker->twist_msg_.header.stamp = nh->now();;
+    }
 
-  //   if (twist_pub->getNumSubscribers() > 0)
-  //   {
-  //     if (tracker->use_server_time_)
-  //     {
-  //       tracker->twist_msg_.header.stamp.sec = tracker_twist.msg_time.tv_sec;
-  //       tracker->twist_msg_.header.stamp.nsec = tracker_twist.msg_time.tv_usec * 1000;
-  //     }
-  //     else
-  //     {
-  //       tracker->twist_msg_.header.stamp = ros::Time::now();
-  //     }
+    tracker->twist_msg_.twist.linear.x = tracker_twist.vel[0];
+    tracker->twist_msg_.twist.linear.y = tracker_twist.vel[1];
+    tracker->twist_msg_.twist.linear.z = tracker_twist.vel[2];
 
-  //     tracker->twist_msg_.twist.linear.x = tracker_twist.vel[0];
-  //     tracker->twist_msg_.twist.linear.y = tracker_twist.vel[1];
-  //     tracker->twist_msg_.twist.linear.z = tracker_twist.vel[2];
+    double roll, pitch, yaw;
+    tf2::Matrix3x3 rot_mat(
+        tf2::Quaternion(tracker_twist.vel_quat[0], tracker_twist.vel_quat[1], tracker_twist.vel_quat[2],
+                        tracker_twist.vel_quat[3]));
+    rot_mat.getRPY(roll, pitch, yaw);
 
-  //     double roll, pitch, yaw;
-  //     tf2::Matrix3x3 rot_mat(
-  //         tf2::Quaternion(tracker_twist.vel_quat[0], tracker_twist.vel_quat[1], tracker_twist.vel_quat[2],
-  //                         tracker_twist.vel_quat[3]));
-  //     rot_mat.getRPY(roll, pitch, yaw);
+    tracker->twist_msg_.twist.angular.x = roll;
+    tracker->twist_msg_.twist.angular.y = pitch;
+    tracker->twist_msg_.twist.angular.z = yaw;
 
-  //     tracker->twist_msg_.twist.angular.x = roll;
-  //     tracker->twist_msg_.twist.angular.y = pitch;
-  //     tracker->twist_msg_.twist.angular.z = yaw;
+    tracker->twist_pub_->publish(tracker->twist_msg_);
+  }
 
-  //     twist_pub->publish(tracker->twist_msg_);
-  //   }
-  // }
+  void VRPN_CALLBACK VrpnTrackerRos::handle_accel(void *userData, const vrpn_TRACKERACCCB tracker_accel)
+  {
+    VrpnTrackerRos *tracker = static_cast<VrpnTrackerRos *>(userData);
+    rclcpp::Node::SharedPtr nh = tracker->output_nh_;
 
-  // void VRPN_CALLBACK VrpnTrackerRos::handle_accel(void *userData, const vrpn_TRACKERACCCB tracker_accel)
-  // {
-  //   VrpnTrackerRos *tracker = static_cast<VrpnTrackerRos *>(userData);
+    if (!tracker->accel_pub_)
+    {
+      tracker->accel_pub_ = nh->create_publisher<geometry_msgs::msg::AccelStamped>("accel", 1);
+    }
 
-  //   ros::Publisher *accel_pub;
-  //   std::size_t sensor_index(0);
-  //   rclcpp::Node::SharedPtr nh = tracker->output_nh_;
+    if (tracker->use_server_time_)
+    {
+      tracker->accel_msg_.header.stamp.sec = tracker_accel.msg_time.tv_sec;
+      tracker->accel_msg_.header.stamp.nanosec = tracker_accel.msg_time.tv_usec * 1000;
+    }
+    else
+    {
+      tracker->accel_msg_.header.stamp = nh->now();;
+    }
 
-  //   if (tracker->process_sensor_id_)
-  //   {
-  //     sensor_index = static_cast<std::size_t>(tracker_accel.sensor);
-  //     nh = rclcpp::Node::SharedPtr(tracker->output_nh_, std::to_string(tracker_accel.sensor));
-  //   }
-  //   
-  //   if (tracker->accel_pubs_.size() <= sensor_index)
-  //   {
-  //     tracker->accel_pubs_.resize(sensor_index + 1);
-  //   }
-  //   accel_pub = &(tracker->accel_pubs_[sensor_index]);
+    tracker->accel_msg_.accel.linear.x = tracker_accel.acc[0];
+    tracker->accel_msg_.accel.linear.y = tracker_accel.acc[1];
+    tracker->accel_msg_.accel.linear.z = tracker_accel.acc[2];
 
-  //   if (accel_pub->getTopic().empty())
-  //   {
-  //     *accel_pub = nh.advertise<geometry_msgs::TwistStamped>("accel", 1);
-  //   }
+    double roll, pitch, yaw;
+    tf2::Matrix3x3 rot_mat(
+        tf2::Quaternion(tracker_accel.acc_quat[0], tracker_accel.acc_quat[1], tracker_accel.acc_quat[2],
+                        tracker_accel.acc_quat[3]));
+    rot_mat.getRPY(roll, pitch, yaw);
 
-  //   if (accel_pub->getNumSubscribers() > 0)
-  //   {
-  //     if (tracker->use_server_time_)
-  //     {
-  //       tracker->accel_msg_.header.stamp.sec = tracker_accel.msg_time.tv_sec;
-  //       tracker->accel_msg_.header.stamp.nsec = tracker_accel.msg_time.tv_usec * 1000;
-  //     }
-  //     else
-  //     {
-  //       tracker->accel_msg_.header.stamp = ros::Time::now();
-  //     }
+    tracker->accel_msg_.accel.angular.x = roll;
+    tracker->accel_msg_.accel.angular.y = pitch;
+    tracker->accel_msg_.accel.angular.z = yaw;
 
-  //     tracker->accel_msg_.accel.linear.x = tracker_accel.acc[0];
-  //     tracker->accel_msg_.accel.linear.y = tracker_accel.acc[1];
-  //     tracker->accel_msg_.accel.linear.z = tracker_accel.acc[2];
-
-  //     double roll, pitch, yaw;
-  //     tf2::Matrix3x3 rot_mat(
-  //         tf2::Quaternion(tracker_accel.acc_quat[0], tracker_accel.acc_quat[1], tracker_accel.acc_quat[2],
-  //                         tracker_accel.acc_quat[3]));
-  //     rot_mat.getRPY(roll, pitch, yaw);
-
-  //     tracker->accel_msg_.accel.angular.x = roll;
-  //     tracker->accel_msg_.accel.angular.y = pitch;
-  //     tracker->accel_msg_.accel.angular.z = yaw;
-
-  //     accel_pub->publish(tracker->accel_msg_);
-  //   }
-  // }
+    tracker->accel_pub_->publish(tracker->accel_msg_);
+  }
 
   VrpnClientRos::VrpnClientRos(rclcpp::Node::SharedPtr nh, rclcpp::Node::SharedPtr private_nh)
   {
