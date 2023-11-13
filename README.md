@@ -14,8 +14,3 @@ clone the following repository to the src folder of your ros_overlay_ws:
 ```
 git clone --single-branch --branch debian/melodic/vrpn git@github.com:ros-drivers-gbp/vrpn-release.git
 ```
-
-## What works?
-
-I only use pose in my project, so I did not port anything else (TF, twist, accel). Also multiple sensors per tracker are not ported.
-If there is anyone who would like to use the other features and is willing to test them, I'd be happy to help.
