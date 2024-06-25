@@ -1,7 +1,6 @@
 # vrpn_client_ros
 This fork aims to add velocity and acceleration support to ros2
 
-```
 ## Usage
 ```
 sudo apt install ros-foxy-vrpn
@@ -12,6 +11,7 @@ cd ~/ros2_ws
 colcon build --packages-select vrpn_client_ros  --symlink-install
 source install/setup.bash
 ```
+
 nokov@ubuntu:~/ros2_ws/src/vrpn_client_ros/config$ gedit sample.params.yaml
 
 这是一个`vrpn_client_node`的ROS参数配置文件。以下是每个参数的说明：
