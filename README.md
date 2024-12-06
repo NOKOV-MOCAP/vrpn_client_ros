@@ -1,3 +1,9 @@
+![rolling](https://github.com/NOKOV-MOCAP/vrpn_client_ros/actions/workflows/rolling.yml/badge.svg)
+![jazzy](https://github.com/NOKOV-MOCAP/vrpn_client_ros/actions/workflows/jazzy.yml/badge.svg)
+![iron](https://github.com/NOKOV-MOCAP/vrpn_client_ros/actions/workflows/iron.yml/badge.svg)
+![humble](https://github.com/NOKOV-MOCAP/vrpn_client_ros/actions/workflows/humble.yml/badge.svg)
+![foxy](https://github.com/NOKOV-MOCAP/vrpn_client_ros/actions/workflows/foxy.yml/badge.svg)
+
 # vrpn_client_ros
 This fork aims to add velocity and acceleration support to ros2
 
