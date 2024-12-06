@@ -5,12 +5,18 @@
 ![foxy](https://github.com/NOKOV-MOCAP/vrpn_client_ros/actions/workflows/foxy.yml/badge.svg)
 
 # vrpn_client_ros
+
 This fork aims to add velocity and acceleration support to ros2
 
 ## Usage
+
 ```
-sudo apt install ros-foxy-vrpn
-source /opt/ros/foxy/setup.bash
+sudo apt install -y \
+     ros-$ROS_DISTRO-geometry-msgs \
+     ros-$ROS_DISTRO-tf2 \
+     ros-$ROS_DISTRO-tf2-ros \
+     ros-$ROS_DISTRO-vrpn 
+source /opt/ros/$ROS_DISTRO/setup.bash
 cd ~/ros2_ws/src
 git clone -b foxy-devel https://github.com/NOKOV-MOCAP/vrpn_client_ros
 cd ~/ros2_ws
@@ -20,20 +26,40 @@ source install/setup.bash
 
 nokov@ubuntu:~/ros2_ws/src/vrpn_client_ros/config$ gedit sample.params.yaml
 
-这是一个`vrpn_client_node`的ROS参数配置文件。以下是每个参数的说明：
+```
+vrpn_client_node:
+  ros__parameters:
+    server: 192.168.2.148
+    port: 3883
+    frame_id: "world"
+    use_server_time: false
+    refresh_tracker_frequency: 0.2
+    update_frequency: 60.0
 
-- `server`: VRPN服务器的IP地址。在这个例子中，服务器的IP地址是`192.168.0.107`, 这里你可以修改为10.1.1.198
+```
 
-- `port`: VRPN服务器的端口号。在这个例子中，端口号是`3883`。
+This is a ROS parameter configuration file for `vrpn_client_node`. Here is a description of each parameter:
 
-- `frame_id`: 用于发布VRPN数据的坐标系的名称。在这个例子中，坐标系的名称是`world`。
+- `server` : indicates the IP address of the VRPN server. In this example, the server's IP address is' 192.168.2.148 ', which you can change to 10.1.1.198
+- `port` : indicates the port number of the VRPN server. In this example, the port number is' 3883 '.
+- `frame_id` : name of the frame on which to publish VRPN data. In this example, the name of the coordinate system is' world '.
+- `use_server_time` : a Boolean value that indicates whether the server timestamp is used. If set to true, `vrpn_client_node` will use the timestamp received from the server. If set to false, `vrpn_client_node` will use its own timestamp. In this example, the parameter is set to 'false'.
+- `refresh_tracker_frequency` : This is a frequency value indicating how often `vrpn_client_node` refreshes the status of the tracker. In this example, the frequency is refreshed every 5 seconds (0.2 Hz).
+- `update_frequency` : This is a frequency value indicating how often `vrpn_client_node` updates data and publishes it to ROS. In this example, this frequency is 60 times per second (60 Hz).
 
-- `use_server_time`: 一个布尔值，表示是否使用服务器的时间戳。如果设置为`true`，`vrpn_client_node`将使用从服务器接收到的时间戳。如果设置为`false`，`vrpn_client_node`将使用它自己的时间戳。在这个例子中，这个参数被设置为`false`。
+### Launch Default Configuration from Command Line
 
-- `refresh_tracker_frequency`: 这是一个频率值，表示`vrpn_client_node`多久刷新一次跟踪器的状态。在这个例子中，这个频率是每5秒（0.2 Hz）刷新一次。
+Run the following command,
 
-- `update_frequency`: 这是一个频率值，表示`vrpn_client_node`多久更新一次数据并发布到ROS。在这个例子中，这个频率是每秒30次（30 Hz）。
+```bash
+ros2 launch vrpn_client_ros sample.launch.py
+```
 
-请注意，这些参数的具体含义和使用可能会根据你的具体使用场景和`vrpn_client_node`的实现有所不同。
+```Then with `ros2 topic list`, you should be able to see the following topics
 
-
+```bash
+/vrpn_client_node/<tracker_name>/pose
+/vrpn_client_node/<tracker_name>/twist # optional when mocap reports velocity data
+/vrpn_client_node/<tracker_name>/accel # optional when mocap reports acceleration data
+```
+where `<tracker_name>` is usually the name of your tracked objects.
