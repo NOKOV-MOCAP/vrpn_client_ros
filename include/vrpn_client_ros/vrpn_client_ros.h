@@ -91,7 +91,7 @@ namespace vrpn_client_ros
     geometry_msgs::msg::PoseStamped pose_msg_;
     geometry_msgs::msg::TwistStamped twist_msg_;
     geometry_msgs::msg::AccelStamped accel_msg_;
-    // geometry_msgs::TransformStamped transform_stamped_;
+    geometry_msgs::msg::TransformStamped transform_stamped_;
 
     void init(std::string tracker_name, rclcpp::Node::SharedPtr nh, bool create_mainloop_timer);
 
