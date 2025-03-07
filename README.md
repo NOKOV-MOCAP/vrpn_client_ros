@@ -35,6 +35,7 @@ vrpn_client_node:
     use_server_time: false
     refresh_tracker_frequency: 0.2
     update_frequency: 60.0
+    broadcast_tf: true
 
 ```
 
@@ -46,6 +47,7 @@ This is a ROS parameter configuration file for `vrpn_client_node`. Here is a des
 - `use_server_time` : a Boolean value that indicates whether the server timestamp is used. If set to true, `vrpn_client_node` will use the timestamp received from the server. If set to false, `vrpn_client_node` will use its own timestamp. In this example, the parameter is set to 'false'.
 - `refresh_tracker_frequency` : This is a frequency value indicating how often `vrpn_client_node` refreshes the status of the tracker. In this example, the frequency is refreshed every 5 seconds (0.2 Hz).
 - `update_frequency` : This is a frequency value indicating how often `vrpn_client_node` updates data and publishes it to ROS. In this example, this frequency is 60 times per second (60 Hz).
+- `broadcast_tf `: a Boolean value that indicates whether the tf broadcast is enabled. If set to true, vrpn_client_node will broadcast the trackers pose to tf topic. If set to false, vrpn_client_node will not boradcast trackers pose. in this example, the parameter is set to 'false'.
 
 ### Launch Default Configuration from Command Line
 
@@ -55,11 +57,13 @@ Run the following command,
 ros2 launch vrpn_client_ros sample.launch.py
 ```
 
-```Then with `ros2 topic list`, you should be able to see the following topics
+Then with `ros2 topic list`, you should be able to see the following topics
 
 ```bash
 /vrpn_client_node/<tracker_name>/pose
 /vrpn_client_node/<tracker_name>/twist # optional when mocap reports velocity data
 /vrpn_client_node/<tracker_name>/accel # optional when mocap reports acceleration data
+/tf                                    # optional when broadcast_tf is set to true
 ```
+
 where `<tracker_name>` is usually the name of your tracked objects.
